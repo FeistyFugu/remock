@@ -1,36 +1,44 @@
 import MockedResponse from "./mockedResponse";
 
 export default class MappedResponses {
-    private static instance: MappedResponses;
-    private responses: MockedResponse[] = [];
+    private static _instance: MappedResponses;
+    private _responses: MockedResponse[] = [];
+    private _mockExpiryTimeout: NodeJS.Timeout | undefined;
 
-    private constructor() {
-        setInterval(() => {
-            const originalLength = this.responses.length;
-            
-            this.responses = this.responses.filter(
-                responses => responses.lastAccess === undefined || responses.lastAccess + (15 * 60 * 1000) > Date.now());
-            
-            const diffLength = originalLength - this.responses.length;
-            if (diffLength >= 1) {
-                console.log(`Deleted ${diffLength} items`);
-            }
-        }, 60 * 1000);
-    };
+    private constructor() {};
 
     static getInstance(): MappedResponses {
-        if (!MappedResponses.instance) {
-            MappedResponses.instance = new MappedResponses();
+        if (!MappedResponses._instance) {
+            MappedResponses._instance = new MappedResponses();
         }
-        return MappedResponses.instance;
+        return MappedResponses._instance;
+    }
+
+    setMockExpiry(expiryInMinutes: number = 0) {
+        if (this._mockExpiryTimeout !== undefined) {
+            return;
+        }
+        if (expiryInMinutes > 0) {
+            this._mockExpiryTimeout = setInterval(() => {
+                const originalLength = this._responses.length;
+                
+                this._responses = this._responses.filter(
+                    responses => responses.lastAccess === undefined || responses.lastAccess + (expiryInMinutes * 60 * 1000) > Date.now());
+                
+                const diffLength = originalLength - this._responses.length;
+                if (diffLength >= 1) {
+                    console.log(`Deleted ${diffLength} items`);
+                }
+            }, 60 * 1000);
+        }
     }
 
     private findResponseIndexById(id: string): number {
-        return this.responses.findIndex(responses => responses.id === id);
+        return this._responses.findIndex(responses => responses.id === id);
     }
     
     find(method: string, url: string, body: any = undefined): MockedResponse | undefined {
-        let reponse = this.responses.find(mock => mock.matches(method, url, body));
+        let reponse = this._responses.find(mock => mock.matches(method, url, body));
         if (reponse === undefined) {
             return undefined;
         }
@@ -43,12 +51,12 @@ export default class MappedResponses {
         if (index < 0) {
             return undefined;
         }
-        this.responses[index].lastAccess = Date.now();
-        return this.responses[index];
+        this._responses[index].lastAccess = Date.now();
+        return this._responses[index];
     }
 
     list(): MockedResponse[] {
-        return [...this.responses];
+        return [...this._responses];
     }
     
     add(responseToAdd: MockedResponse) {
@@ -56,7 +64,7 @@ export default class MappedResponses {
             return;
         }
         responseToAdd.lastAccess = Date.now();
-        this.responses.push(responseToAdd);
+        this._responses.push(responseToAdd);
     }
 
     update(updatedMock: MockedResponse): boolean {
@@ -64,8 +72,8 @@ export default class MappedResponses {
         if (index < 0) {
             return false;
         }
-        delete this.responses[index];
-        this.responses[index] = updatedMock;
+        delete this._responses[index];
+        this._responses[index] = updatedMock;
         updatedMock.lastAccess = Date.now();
         return true;
     }
@@ -75,11 +83,11 @@ export default class MappedResponses {
         if (index < 0) {
             return false;
         }
-        this.responses.splice(index, 1);
+        this._responses.splice(index, 1);
         return true;
     }
 
     clear() {
-        this.responses = [];
+        this._responses = [];
     }
 }

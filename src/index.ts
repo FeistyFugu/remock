@@ -146,9 +146,21 @@ async function activateMock(store: MockedResponses, req: IncomingMessage, res: S
     }
 }
 
+let port = +process.argv[2];
+let mockExpiryInMinutes = +process.argv[3];
+
+if (!port) {
+    port = 9191;
+}
+
+if (!mockExpiryInMinutes) {
+    mockExpiryInMinutes = 0;
+}
+
 const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
     try {
         let store = MockedResponses.getInstance();
+        store.setMockExpiry(mockExpiryInMinutes);
         if (await handleSetupRequest(store, req, res) || await activateMock(store, req, res)) {
             return;
         } else {
@@ -159,6 +171,11 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
     }
 });
 
-server.listen(9191, () => {
-    console.log("Listening on port 9191")
+server.listen(port, () => {
+    console.log(`Listening on port ${port}.`);
+    if (mockExpiryInMinutes) {
+        console.log(`Mock expiry set to ${mockExpiryInMinutes} minutes.`);
+    } else {
+        console.log(`Mocks never expire.`);
+    }
 });
